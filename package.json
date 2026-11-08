@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "start": "node server.cjs",
+    "deploy": "firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.15.4"
+  }
+}

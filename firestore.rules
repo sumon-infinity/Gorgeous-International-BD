@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function admin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    function text(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+    function https(value) {
+      return text(value, 0, 500) && (value == '' || value.matches('https://.+'));
+    }
+    function listing(data) {
+      let fields = ['title', 'location', 'type', 'purpose', 'price', 'units', 'photoUrl', 'propertyLink', 'description', 'updatedAt'];
+      return data.keys().hasAll(fields) && data.keys().hasOnly(fields)
+        && text(data.title, 1, 100) && text(data.location, 1, 120)
+        && data.type in ['Residential', 'Commercial', 'Land'] && data.purpose in ['Buy', 'Rent']
+        && data.price is int && data.price >= 0 && data.price <= 100000000000
+        && text(data.units, 0, 120) && https(data.photoUrl) && https(data.propertyLink)
+        && text(data.description, 1, 2000) && text(data.updatedAt, 24, 24);
+    }
+    match /gorgeousListings/{id} {
+      allow read: if true;
+      allow create, update: if admin() && listing(request.resource.data);
+      allow delete: if admin();
+    }
+    match /gorgeousEnquiries/{id} {
+      allow read, delete: if admin();
+      allow create: if request.resource.data.keys().hasOnly(['topic', 'property', 'name', 'contact', 'message', 'createdAt'])
+        && request.resource.data.topic in ['Find a property', 'Request a viewing', 'Submit a property', 'General enquiry']
+        && text(request.resource.data.property, 0, 100) && text(request.resource.data.name, 1, 100)
+        && text(request.resource.data.contact, 1, 120) && text(request.resource.data.message, 1, 2000)
+        && request.resource.data.createdAt == request.time;
+    }
+  }
+}
